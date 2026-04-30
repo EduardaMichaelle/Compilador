@@ -109,6 +109,7 @@ class ParserCool:
     def parse_feature(self):
         id_nome = self.comer('ID')
         
+        # Se tem '(', é um MÉTODO
         if self.atual() and self.atual()['valor'] == '(':
             self.comer('PUNCT', '(')
             while self.atual() and self.atual()['valor'] != ')':
@@ -123,9 +124,10 @@ class ParserCool:
             self.comer('PUNCT', '{')
             corpo = self.parse_expressao()
             self.comer('PUNCT', '}')
-            self.comer('PUNCT', ';')
+            self.comer('PUNCT', ';') # Ponto e vírgula após o método
             return {"tipo": "Metodo", "nome": id_nome['valor'], "retorno": tipo_retorno['valor']}
         
+        # Se não tem '(', é um ATRIBUTO
         else:
             self.comer('PUNCT', ':')
             tipo = self.comer('ID')
@@ -133,11 +135,7 @@ class ParserCool:
                 self.comer('ASSIGN')
                 self.pos += 1 
             
-            if self.atual() and self.atual()['valor'] == ';':
-                self.comer('PUNCT', ';')
-            elif self.atual() and self.atual()['valor'] == ',':
-                self.comer('PUNCT', ',')
-                
+            self.comer('PUNCT', ';') # Ponto e vírgula após o atributo (AGORA OBRIGATÓRIO)
             return {"tipo": "Atributo", "nome": id_nome['valor'], "dado": tipo['valor']}
 
     def parse_expressao(self):
@@ -200,19 +198,44 @@ class ParserCool:
 
     def parse_let(self):
         self.comer('KEYWORD', 'let')
-        while self.atual() and self.atual()['valor'] != 'in':
-            self.parse_feature()
+        
+        # Loop para processar as variáveis do let
+        while True:
+            id_nome = self.comer('ID')
+            self.comer('PUNCT', ':')
+            tipo = self.comer('ID')
+            
+            # Inicialização opcional: let x : Int <- 0
+            if self.atual() and self.atual()['valor'] == '<-':
+                self.comer('ASSIGN')
+                self.parse_expressao() 
+            
+            # Se encontrar uma vírgula, tem mais variável vindo
+            if self.atual() and self.atual()['valor'] == ',':
+                self.comer('PUNCT', ',')
+            else:
+                # Se não tem vírgula, TEM que vir o 'in'
+                break
+        
         self.comer('KEYWORD', 'in')
-        return {"tipo": "Let", "corpo": self.parse_expressao()}
+        corpo = self.parse_expressao()
+        return {"tipo": "Let", "corpo": corpo}
 
     def parse_bloco(self):
         self.comer('PUNCT', '{')
+        corpo = []
+        
         while self.atual() and self.atual()['valor'] != '}':
-            self.parse_expressao()
-            if self.atual() and self.atual()['valor'] == ';':
-                self.comer('PUNCT', ';')
+            # 1. Tenta parsear a expressão (ex: nome <- n)
+            expr = self.parse_expressao()
+            corpo.append(expr)
+            
+            # 2. OBRIGATÓRIO: Tem que ter um ";" logo em seguida
+            # Se não tiver, o erro vai ser disparado exatamente aqui
+            self.comer('PUNCT', ';')
+            
         self.comer('PUNCT', '}')
-        return {"tipo": "Bloco"}
+        return {"tipo": "Bloco", "expressoes": corpo}
 
 # --- EXECUÇÃO ---
 
