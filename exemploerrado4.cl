@@ -1,8 +1,9 @@
 class Teste {
-    valor : String;
+    valor : Int;
+    -- y : Int;
 
     -- Erro 1: O método diz que retorna Int, mas retorna uma String
-    retorna_errado() : String {
+    retorna_errado() : Int {
         "Isso é uma string, não um inteiro"
     };
 
